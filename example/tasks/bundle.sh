@@ -1,18 +1,14 @@
 #!/usr/bin/env bash
-# tinybuild needs compile
-# tinybuild needs resource
-# tinybuild input build/MyApp
-# tinybuild input build/message.txt
+# tinybuild needs ./compile.sh
+# tinybuild needs ./resource.sh
 # tinybuild input Info.plist
-# tinybuild output build/MyApp.app
+# tinybuild output MyApp.app
 set -euo pipefail
 
-app="build/MyApp.app"
+app="MyApp.app"
 rm -rf "$app"
 mkdir -p "$app"
 
-cp build/MyApp "$app/MyApp"
-cp build/message.txt "$app/message.txt"
+cp MyApp "$app/MyApp"
+cp message.txt "$app/message.txt"
 cp Info.plist "$app/Info.plist"
-
-echo "assembled $app"

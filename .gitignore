@@ -1,3 +1,3 @@
 /target
 .tinybuild/
-example/build/
+example/out/

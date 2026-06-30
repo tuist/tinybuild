@@ -1,9 +1,9 @@
 [package]
 name = "tinybuild"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.74"
-description = "A tiny build system that turns annotated shell scripts into a cacheable, parallel DAG."
+description = "A tiny build system that turns annotated shell scripts into a hermetic, content-addressed, cacheable DAG."
 license = "MIT"
 
 [[bin]]
@@ -13,3 +13,5 @@ path = "src/main.rs"
 [dependencies]
 glob = "0.3"
 sha2 = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
