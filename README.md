@@ -4,7 +4,7 @@ A tiny build system in a few hundred lines of Rust. It exists to make one idea c
 
 Here an action is just a shell script that declares its contract in header comments. From those declarations tinybuild builds a graph, runs independent work in parallel, and skips anything whose inputs have not changed.
 
-This is the companion code for the blog post [_Three build systems, one graph_](https://pepicrft.me/blog/three-build-systems-one-graph/). It is a teaching tool, not something to build real software with.
+This is the companion code for the blog post [_Three build systems, one graph_](https://tuist.dev/blog/2026/06/30/three-build-systems-one-graph). It is a teaching tool, not something to build real software with.
 
 ## A task is a script with a contract
 
