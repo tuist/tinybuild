@@ -81,14 +81,13 @@ fn default_store() -> PathBuf {
 fn real_main() -> Result<(), String> {
     let opts = parse_args();
     let root = std::env::current_dir().map_err(|e| e.to_string())?;
-    let tasks_dir = root.join("tasks");
 
     match opts.command.as_str() {
         "run" => {
             let store = Store::open(opts.store, opts.substituter)?;
-            let graph = load_graph(&root, &tasks_dir)?;
+            let (graph, target_id) = load_for(&root, opts.target.as_deref())?;
             let out_dir = root.join("out");
-            let summary = build::run(&graph, opts.target.as_deref(), &root, &store, &out_dir)?;
+            let summary = build::run(&graph, target_id.as_deref(), &root, &store, &out_dir)?;
             write_roots(&store, &summary.keys)?;
             println!(
                 "\n{} task(s): {} run, {} cached -> {}",
@@ -100,12 +99,12 @@ fn real_main() -> Result<(), String> {
             Ok(())
         }
         "plan" => {
-            let graph = load_graph(&root, &tasks_dir)?;
-            println!("{}", build::plan(&graph, opts.target.as_deref())?);
+            let (graph, target_id) = load_for(&root, opts.target.as_deref())?;
+            println!("{}", build::plan(&graph, target_id.as_deref())?);
             Ok(())
         }
         "graph" => {
-            let graph = load_graph(&root, &tasks_dir)?;
+            let (graph, _) = load_for(&root, None)?;
             print_graph(&graph)
         }
         "gc" => {
@@ -126,8 +125,17 @@ fn real_main() -> Result<(), String> {
     }
 }
 
-fn load_graph(root: &std::path::Path, tasks_dir: &std::path::Path) -> Result<Graph, String> {
-    Graph::new(task::load(root, tasks_dir)?)
+fn load_for(
+    root: &std::path::Path,
+    target: Option<&str>,
+) -> Result<(Graph, Option<String>), String> {
+    let targets: Vec<PathBuf> = target.map(|t| vec![PathBuf::from(t)]).unwrap_or_default();
+    let graph = Graph::new(task::load(root, &targets)?)?;
+    let target_id = match target {
+        Some(t) => Some(task::id_for(root, &PathBuf::from(t))?),
+        None => None,
+    };
+    Ok((graph, target_id))
 }
 
 fn roots_path(store: &Store) -> PathBuf {
@@ -167,15 +175,15 @@ fn print_help() {
     println!(
         "tinybuild - a tiny build system\n\n\
          USAGE:\n\
-         \x20 tinybuild run [TASK]    build TASK and its dependencies (default: all roots)\n\
-         \x20 tinybuild plan [TASK]   print the build plan as JSON\n\
-         \x20 tinybuild graph         print the execution waves\n\
-         \x20 tinybuild gc            drop store entries the last build cannot reach\n\
-         \x20 tinybuild help          show this message\n\n\
+         \x20 tinybuild run [SCRIPT]    build SCRIPT and its dependencies (default: all roots)\n\
+         \x20 tinybuild plan [SCRIPT]   print the build plan as JSON\n\
+         \x20 tinybuild graph           print the execution waves\n\
+         \x20 tinybuild gc              drop store entries the last build cannot reach\n\
+         \x20 tinybuild help            show this message\n\n\
          OPTIONS:\n\
-         \x20 --store PATH            content-addressed store (default: ~/.cache/tinybuild/store)\n\
-         \x20 --substituter PATH      a remote store to pull from and push to\n\n\
-         Tasks are *.sh files in ./tasks that declare their contract in headers:\n\
+         \x20 --store PATH              content-addressed store (default: ~/.cache/tinybuild/store)\n\
+         \x20 --substituter PATH        a remote store to pull from and push to\n\n\
+         Tasks are *.sh files (in any directory) that declare their contract in headers:\n\
          \x20 # tinybuild needs ./other-task.sh\n\
          \x20 # tinybuild input src/**/*.txt\n\
          \x20 # tinybuild output out.txt\n\

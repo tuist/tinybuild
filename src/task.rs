@@ -93,22 +93,28 @@ fn parse(root: &Path, path: &Path) -> Result<Task, String> {
     Ok(task)
 }
 
-/// Load every `*.sh` task reachable from `tasks_dir`, following `needs` edges so
-/// dependencies outside the directory are loaded too.
-pub fn load(root: &Path, tasks_dir: &Path) -> Result<Vec<Task>, String> {
+/// Resolve a script path to its task id (its path relative to the project root).
+pub fn id_for(root: &Path, path: &Path) -> Result<String, String> {
     let root = fs::canonicalize(root).map_err(|e| e.to_string())?;
-    let mut map: BTreeMap<String, Task> = BTreeMap::new();
-    let mut queue: Vec<PathBuf> = Vec::new();
+    normalize_id(&root, path)
+}
 
-    let entries = fs::read_dir(tasks_dir)
-        .map_err(|e| format!("cannot read tasks dir {}: {e}", tasks_dir.display()))?;
-    for entry in entries {
-        let path = entry.map_err(|e| e.to_string())?.path();
-        if path.extension().and_then(|e| e.to_str()) == Some("sh") {
-            queue.push(path);
-        }
+/// Load tasks, following `needs` edges to pull in their dependencies.
+///
+/// With explicit `targets` (script paths), the graph is whatever those targets
+/// reach. With none, tinybuild discovers tasks by scanning the project for
+/// `*.sh` files that carry a `# tinybuild` header, so the scripts can live in
+/// any directory, `tasks/`, `build/`, `scripts/`, it does not matter.
+pub fn load(root: &Path, targets: &[PathBuf]) -> Result<Vec<Task>, String> {
+    let root = fs::canonicalize(root).map_err(|e| e.to_string())?;
+    let mut queue: Vec<PathBuf> = Vec::new();
+    if targets.is_empty() {
+        discover(&root, &mut queue)?;
+    } else {
+        queue.extend(targets.iter().cloned());
     }
 
+    let mut map: BTreeMap<String, Task> = BTreeMap::new();
     while let Some(path) = queue.pop() {
         let id = normalize_id(&root, &path)?;
         if map.contains_key(&id) {
@@ -122,6 +128,26 @@ pub fn load(root: &Path, tasks_dir: &Path) -> Result<Vec<Task>, String> {
     }
 
     Ok(map.into_values().collect())
+}
+
+/// Walk the project for `*.sh` files that declare a `# tinybuild` directive.
+fn discover(dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
+    for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
+        let path = entry.map_err(|e| e.to_string())?.path();
+        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+        if path.is_dir() {
+            if name.starts_with('.') || matches!(name, "out" | "target" | "node_modules") {
+                continue;
+            }
+            discover(&path, out)?;
+        } else if path.extension().and_then(|e| e.to_str()) == Some("sh") {
+            let text = fs::read_to_string(&path).unwrap_or_default();
+            if text.contains(PREFIX) {
+                out.push(path);
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -145,7 +171,7 @@ mod tests {
             "# tinybuild needs ./compile.sh\n# tinybuild output MyApp.app\n",
         );
 
-        let loaded = load(&tmp, &tasks).unwrap();
+        let loaded = load(&tmp, &[]).unwrap();
         let bundle = loaded.iter().find(|t| t.id == "tasks/bundle.sh").unwrap();
         assert_eq!(bundle.needs, ["tasks/compile.sh"]);
 
