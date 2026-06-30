@@ -10,12 +10,14 @@ This is the companion code for the blog post [_Three build systems, one graph_](
 
 ```sh
 #!/usr/bin/env bash
-# tinybuild needs banner
-# tinybuild input build/greeting.txt
-# tinybuild output build/package.txt
-# tinybuild env GREETING
+# tinybuild needs compile
+# tinybuild needs resource
+# tinybuild input build/MyApp
+# tinybuild input build/message.txt
+# tinybuild input Info.plist
+# tinybuild output build/MyApp.app
 
-cat build/banner.txt build/greeting.txt > build/package.txt
+# assemble MyApp.app from the compiled binary, the resource, and Info.plist
 ```
 
 Four directives, and that is the whole language:
@@ -27,6 +29,8 @@ Four directives, and that is the whole language:
 
 ## Try it
 
+The example in `example/` builds a minimal macOS `.app` bundle from a single Swift file and a resource. It needs `swiftc` on your `PATH` (Xcode or the Command Line Tools).
+
 ```sh
 cargo build
 cd example
@@ -34,9 +38,13 @@ cd example
 ../target/debug/tinybuild graph   # show the execution waves
 ../target/debug/tinybuild run     # first run: everything executes
 ../target/debug/tinybuild run     # second run: everything is cached
+
+./build/MyApp.app/Contents/MacOS/MyApp
 ```
 
-Change `example/names.txt` and run again. The `greeting` task reruns because one of its inputs changed, and `package` reruns because it depends on `greeting`, but `banner` stays cached because nothing it declared moved.
+The graph has two waves: `compile` and `resource` are independent, so they run together, and `bundle` waits for both.
+
+Edit `example/Sources/main.swift` and run again. `compile` reruns because its input changed, `bundle` reruns because it depends on `compile`, and `resource` stays cached because nothing it declared moved. Run it with `CONFIGURATION=release ../target/debug/tinybuild run` and `compile` reruns too, because the declared environment value is part of its key.
 
 ## How it works
 
