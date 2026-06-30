@@ -8,5 +8,8 @@ mkdir -p build
 flags="-Onone"
 [ "${CONFIGURATION:-debug}" = "release" ] && flags="-O"
 
-swiftc $flags Sources/main.swift -o build/MyApp
-echo "compiled build/MyApp ($flags)"
+arch="$(uname -m)"
+sdk="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+swiftc $flags -sdk "$sdk" -target "${arch}-apple-ios16.0-simulator" Sources/main.swift -o build/MyApp
+
+echo "compiled build/MyApp for the iOS Simulator ($flags)"

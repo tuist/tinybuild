@@ -9,10 +9,10 @@ set -euo pipefail
 
 app="build/MyApp.app"
 rm -rf "$app"
-mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+mkdir -p "$app"
 
-cp build/MyApp "$app/Contents/MacOS/MyApp"
-cp build/message.txt "$app/Contents/Resources/message.txt"
-cp Info.plist "$app/Contents/Info.plist"
+cp build/MyApp "$app/MyApp"
+cp build/message.txt "$app/message.txt"
+cp Info.plist "$app/Info.plist"
 
 echo "assembled $app"

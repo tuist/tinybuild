@@ -29,7 +29,7 @@ Four directives, and that is the whole language:
 
 ## Try it
 
-The example in `example/` builds a minimal macOS `.app` bundle from a single Swift file and a resource. It needs `swiftc` on your `PATH` (Xcode or the Command Line Tools).
+The example in `example/` builds a minimal iOS `.app` bundle from a single Swift file and a resource: it compiles the Swift file against the iOS Simulator SDK, processes the resource, and assembles `MyApp.app`. It needs a full Xcode install (for the iOS SDK and `swiftc`).
 
 ```sh
 cargo build
@@ -38,11 +38,9 @@ cd example
 ../target/debug/tinybuild graph   # show the execution waves
 ../target/debug/tinybuild run     # first run: everything executes
 ../target/debug/tinybuild run     # second run: everything is cached
-
-./build/MyApp.app/Contents/MacOS/MyApp
 ```
 
-The graph has two waves: `compile` and `resource` are independent, so they run together, and `bundle` waits for both.
+The graph has two waves: `compile` and `resource` are independent, so they run together, and `bundle` waits for both. The result is `example/build/MyApp.app`, which you could install into a booted simulator with `xcrun simctl install booted build/MyApp.app`.
 
 Edit `example/Sources/main.swift` and run again. `compile` reruns because its input changed, `bundle` reruns because it depends on `compile`, and `resource` stays cached because nothing it declared moved. Run it with `CONFIGURATION=release ../target/debug/tinybuild run` and `compile` reruns too, because the declared environment value is part of its key.
 
