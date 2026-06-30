@@ -97,3 +97,53 @@ pub fn load(dir: &Path) -> Result<Vec<Task>, String> {
     tasks.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(tasks)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(name: &str, body: &str) -> Result<Task, String> {
+        Task::parse(
+            &PathBuf::from(format!("tasks/{name}.sh")),
+            body.as_bytes().to_vec(),
+        )
+    }
+
+    #[test]
+    fn parses_every_directive() {
+        let task = parse(
+            "build",
+            "#!/usr/bin/env bash\n\
+             # tinybuild needs compile\n\
+             # tinybuild input src/**/*.txt\n\
+             # tinybuild output build/out.txt\n\
+             # tinybuild env NAME\n\
+             echo hi\n",
+        )
+        .unwrap();
+
+        assert_eq!(task.name, "build");
+        assert_eq!(task.needs, ["compile"]);
+        assert_eq!(task.inputs, ["src/**/*.txt"]);
+        assert_eq!(task.outputs, ["build/out.txt"]);
+        assert_eq!(task.env, ["NAME"]);
+    }
+
+    #[test]
+    fn ignores_lines_without_the_prefix() {
+        let task = parse("noop", "echo hi\n# a normal comment\n").unwrap();
+        assert!(task.needs.is_empty());
+        assert!(task.inputs.is_empty());
+    }
+
+    #[test]
+    fn rejects_unknown_directive() {
+        let err = parse("bad", "# tinybuild frobnicate x\n").unwrap_err();
+        assert!(err.contains("unknown directive"));
+    }
+
+    #[test]
+    fn rejects_directive_without_value() {
+        assert!(parse("bad", "# tinybuild needs\n").is_err());
+    }
+}

@@ -116,3 +116,65 @@ impl Graph {
         Ok(waves)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::task::Task;
+    use std::path::PathBuf;
+
+    fn task(name: &str, needs: &[&str]) -> Task {
+        Task {
+            name: name.into(),
+            path: PathBuf::from(format!("tasks/{name}.sh")),
+            source: Vec::new(),
+            needs: needs.iter().map(|s| s.to_string()).collect(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            env: Vec::new(),
+        }
+    }
+
+    fn graph(tasks: Vec<Task>) -> Graph {
+        Graph::new(tasks).unwrap()
+    }
+
+    #[test]
+    fn waves_group_independent_tasks() {
+        let g = graph(vec![task("a", &[]), task("b", &[]), task("c", &["a", "b"])]);
+        let subset = g.tasks.keys().cloned().collect();
+        let waves = g.waves(&subset).unwrap();
+
+        assert_eq!(waves.len(), 2);
+        assert_eq!(waves[0], ["a", "b"]);
+        assert_eq!(waves[1], ["c"]);
+    }
+
+    #[test]
+    fn detects_cycles() {
+        let g = graph(vec![task("a", &["b"]), task("b", &["a"])]);
+        let subset = g.tasks.keys().cloned().collect();
+        assert!(g.waves(&subset).is_err());
+    }
+
+    #[test]
+    fn rejects_missing_dependency() {
+        assert!(Graph::new(vec![task("a", &["ghost"])]).is_err());
+    }
+
+    #[test]
+    fn closure_is_transitive_and_scoped() {
+        let g = graph(vec![
+            task("a", &[]),
+            task("b", &["a"]),
+            task("c", &["b"]),
+            task("unrelated", &[]),
+        ]);
+        let closure = g.closure("c").unwrap();
+
+        assert!(closure.contains("a"));
+        assert!(closure.contains("b"));
+        assert!(closure.contains("c"));
+        assert!(!closure.contains("unrelated"));
+    }
+}

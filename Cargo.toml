@@ -2,6 +2,7 @@
 name = "tinybuild"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.74"
 description = "A tiny build system that turns annotated shell scripts into a cacheable, parallel DAG."
 license = "MIT"
 
